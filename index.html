@@ -356,18 +356,15 @@ function setSyncStatus(cls, text) {
   document.getElementById('syncText').textContent = text;
 }
 
-async function apiGet(action) {
-  const res = await fetch(`${SCRIPT_URL}?action=${action}`, {redirect:'follow'});
-  return res.json();
-}
-
-async function apiPost(payload) {
-  const res = await fetch(SCRIPT_URL, {
-    method: 'POST',
-    headers: {'Content-Type':'application/json'},
-    body: JSON.stringify(payload),
-    redirect: 'follow'
-  });
+// All operations use GET to avoid CORS issues with Apps Script
+async function apiGet(action, params) {
+  let url = `${SCRIPT_URL}?action=${action}`;
+  if (params) {
+    for (const [k, v] of Object.entries(params)) {
+      url += '&' + k + '=' + encodeURIComponent(typeof v === 'object' ? JSON.stringify(v) : v);
+    }
+  }
+  const res = await fetch(url, {redirect:'follow'});
   return res.json();
 }
 
@@ -394,7 +391,7 @@ async function pushAdd(row) {
   if (!SCRIPT_URL) return null;
   setSyncStatus('load', 'A guardar…');
   try {
-    const res = await apiPost({action:'add', row});
+    const res = await apiGet('add', {row});
     if (res.error) throw new Error(res.error);
     if (res.id) row.id = res.id;
     setSyncStatus('ok', '✓ Guardado');
@@ -406,7 +403,7 @@ async function pushUpdate(row) {
   if (!SCRIPT_URL) return;
   setSyncStatus('load', 'A actualizar…');
   try {
-    const res = await apiPost({action:'update', row});
+    const res = await apiGet('update', {row});
     if (res.error) throw new Error(res.error);
     setSyncStatus('ok', '✓ Actualizado');
   } catch(e) { setSyncStatus('err','Erro ao actualizar'); showToast('Erro: '+e.message,'err'); }
@@ -416,7 +413,7 @@ async function pushDelete(id) {
   if (!SCRIPT_URL) return;
   setSyncStatus('load', 'A apagar…');
   try {
-    const res = await apiPost({action:'delete', id});
+    const res = await apiGet('delete', {id});
     if (res.error) throw new Error(res.error);
     setSyncStatus('ok', '✓ Apagado');
   } catch(e) { setSyncStatus('err','Erro ao apagar'); showToast('Erro: '+e.message,'err'); }
